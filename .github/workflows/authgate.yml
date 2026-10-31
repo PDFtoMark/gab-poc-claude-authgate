@@ -1,0 +1,28 @@
+name: authgate
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+jobs:
+  probe:
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - name: auth
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          echo "ACTOR=${GITHUB_ACTOR}"
+          permission=$(gh api repos/${{ github.repository }}/collaborators/${GITHUB_ACTOR}/permission --jq '.permission' 2>/dev/null || echo "none")
+          echo "permission=$permission"
+          if [ "$permission" = "write" ] || [ "$permission" = "admin" ]; then
+            echo "authorized=true"
+          else
+            echo "authorized=false"
+          fi
+          echo "--- control: octocat ---"
+          gh api repos/${{ github.repository }}/collaborators/octocat/permission --jq '.permission' 2>&1; echo "rc=$?"
